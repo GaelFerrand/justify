@@ -5,7 +5,7 @@ import { APIToken } from './apitoken';
 
 @Injectable()
 export class APITokenDao {
-  async getAPITokenByEmail(email: string): Promise<any> {
+  async getAPITokenByEmail(email: string): Promise<APIToken | undefined> {
     return Database.get<APIToken>('SELECT * FROM apitokens WHERE email  = ?', [
       email,
     ]);
@@ -20,5 +20,11 @@ export class APITokenDao {
     );
 
     return { ...newAPIToken, id };
+  }
+
+  async getAPITokenByToken(token: string): Promise<APIToken | undefined> {
+    return Database.get<APIToken>('SELECT * FROM apitokens WHERE token  = ?', [
+      token,
+    ]);
   }
 }

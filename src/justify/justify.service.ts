@@ -15,7 +15,10 @@ export class JustifyService {
       wordLoop: for (const word of words) {
         // This chunk is hard to extract in a separate function. Essentially, it will
         // split a long word into multiples lines so that it fills started lines and
-        // can be filled after.
+        // can be filled after. Like for example:
+        // "some sentence and aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        // "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        // "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa and some other words"
         if (this.wordIsLongerThanLineMaxLength(word)) {
           const firstIterationEnd = MAX_LINE_SIZE_CHARACTERS - line.length;
           const splittedWord = this.splitWord(word, firstIterationEnd);

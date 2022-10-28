@@ -30,7 +30,7 @@ export class APITokenController {
   async getAPIToken(
     @Body() apiTokenEmailDto: APITokenEmailDto,
   ): Promise<{ token: string }> {
-    const apiToken = await this.apiTokenService.getAPITokenByEmail(
+    const apiToken = await this.apiTokenService.getOrCreateAPITokenByEmail(
       apiTokenEmailDto.email,
     );
     return { token: apiToken.token };
