@@ -2,12 +2,12 @@ import { Body, Controller, Post } from '@nestjs/common';
 import * as Joi from 'joi';
 import { JoiSchemaOptions, JoiSchema } from 'nestjs-joi';
 import { ApiProperty, ApiResponse } from '@nestjs/swagger';
-import { TokenService } from './token.service';
+import { APITokenService } from './apitoken.service';
 
 @JoiSchemaOptions({
   allowUnknown: false,
 })
-export class TokenEmailDto {
+export class APITokenEmailDto {
   @ApiProperty({
     description: "The user's email.",
     minLength: 0,
@@ -20,17 +20,19 @@ export class TokenEmailDto {
 }
 
 @Controller()
-export class TokenController {
-  constructor(private readonly tokenService: TokenService) {}
+export class APITokenController {
+  constructor(private readonly apiTokenService: APITokenService) {}
 
   @ApiResponse({
     description: "The user's token.",
   })
   @Post('api/token')
-  async justify(
-    @Body() tokenEmailDto: TokenEmailDto,
+  async getAPIToken(
+    @Body() apiTokenEmailDto: APITokenEmailDto,
   ): Promise<{ token: string }> {
-    const token = await this.tokenService.getTokenByEmail(tokenEmailDto.email);
-    return { token: token.token };
+    const apiToken = await this.apiTokenService.getAPITokenByEmail(
+      apiTokenEmailDto.email,
+    );
+    return { token: apiToken.token };
   }
 }

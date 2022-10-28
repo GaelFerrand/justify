@@ -1,23 +1,23 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JoiPipeModule } from 'nestjs-joi';
-import { TokenController } from './token.controller';
-import { TokenService } from './token.service';
+import { APITokenController } from './apitoken.controller';
+import { APITokenService } from './apitoken.service';
 import * as request from 'supertest';
-import { TokenDao } from './token.dao';
+import { APITokenDao } from './apitoken.dao';
 
 const UUID_V4_REGEX = new RegExp(
   /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i,
 );
 
-describe('TokenController', () => {
+describe('APITokenController', () => {
   let app: INestApplication;
 
   beforeEach(async () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       imports: [JoiPipeModule],
-      controllers: [TokenController],
-      providers: [TokenService, TokenDao],
+      controllers: [APITokenController],
+      providers: [APITokenService, APITokenDao],
     }).compile();
 
     app = moduleRef.createNestApplication();

@@ -7,7 +7,7 @@ class Database {
     this.db = new sqlite3.Database(':memory:');
 
     this.db.serialize(() => {
-      this.db.run(`CREATE TABLE IF NOT EXISTS tokens (
+      this.db.run(`CREATE TABLE IF NOT EXISTS apitokens (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
     token TEXT UNIQUE NOT NULL

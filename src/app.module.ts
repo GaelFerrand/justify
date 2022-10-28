@@ -3,13 +3,13 @@ import { AppController } from './app.controller';
 import { JustifyController } from './justify/justify.controller';
 import { JustifyService } from './justify/justify.service';
 import { JoiPipeModule } from 'nestjs-joi';
-import { TokenController } from './token/token.controller';
-import { TokenService } from './token/token.service';
-import { TokenDao } from './token/token.dao';
+import { APITokenController } from './apitoken/apitoken.controller';
+import { APITokenService } from './apitoken/apitoken.service';
+import { APITokenDao } from './apitoken/apitoken.dao';
 
 @Module({
   imports: [JoiPipeModule],
-  controllers: [AppController, JustifyController, TokenController],
-  providers: [JustifyService, TokenService, TokenDao],
+  controllers: [AppController, JustifyController, APITokenController],
+  providers: [JustifyService, APITokenService, APITokenDao],
 })
 export class AppModule {}
