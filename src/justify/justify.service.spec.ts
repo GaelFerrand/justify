@@ -1,199 +1,281 @@
-import { JustifyService } from './justify.service';
-import {
-  TEXT_WITH_LESS_THAN_80_CHARACTERS,
-  TEXT_WITH_80_CHARACTERS,
-  TEXT_WITH_81_CHARACTERS,
-  TEXT_WITH_81_CHARACTERS_JUSTIFIED,
-  TEXT_WITH_ONE_PARAGRAPH,
-  TEXT_WITH_ONE_PARAGRAPH_JUSTIFIED,
-  TEXT_WITH_TWO_PARAGRAPHS,
-  TEXT_WITH_TWO_PARAGRAPHS_JUSTIFIED,
-  TEXT_MULTIPLE_LINES_UNDER_80_CHARACTERS,
-  TEXT_WITH_EMPTY_FIRST_LINE,
-  TEXT_WITH_EMPTY_FIRST_LINE_JUSTIFIED,
-  WORD_WITH_81_CHARACTERS,
-  WORD_WITH_81_CHARACTERS_SPLITTED,
-  WORD_WITH_161_CHARACTERS,
-  WORD_WITH_161_CHARACTERS_SPLITTED,
-  WORD_WITH_161_CHARACTERS_SPLITTED_FIRST_ITERATION_47,
-  LONG_TEXT_WITH_LONG_WORD,
-  LONG_TEXT_WITH_LONG_WORD_JUSTIFIED,
-  LONG_TEXT_WITH_LONG_WORD_AND_MORE_TEXT,
-  LONG_TEXT_WITH_LONG_WORD_AND_MORE_TEXT_JUSTIFIED,
-} from './justify.mocks';
+import { JustifyService, KEYS_TTL } from './justify.service';
+import { Test } from '@nestjs/testing';
+import { APITokenService } from '../apitoken/apitoken.service';
+import { CacheModule } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/common';
+import { Cache } from 'cache-manager';
 
-const justifyService = new JustifyService();
+jest.mock('../utils/string.util', () => {
+  const original = jest.requireActual('../utils/string.util');
+  return {
+    ...original,
+    justify: jest.fn().mockReturnValue('justified text'),
+  };
+});
+
+jest.useFakeTimers().setSystemTime(new Date('2020-01-01'));
 
 describe('JustifyService', () => {
-  describe('justify()', () => {
-    it('feeding an empty string > should return an empty string', () => {
+  let justifyService: JustifyService;
+  let cache: Cache;
+
+  const apiTokenServiceMock = { getAPITokenByToken: () => '' };
+
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [CacheModule.register()],
+      providers: [JustifyService, APITokenService],
+    })
+      .overrideProvider(APITokenService)
+      .useValue(apiTokenServiceMock)
+      .compile();
+
+    justifyService = moduleRef.get<JustifyService>(JustifyService);
+    cache = moduleRef.get(CACHE_MANAGER);
+  });
+
+  describe('canJustifyXMoreWordsToday', () => {
+    it('key does not exist > should return true', async () => {
       // Given
-      const input = '';
+      jest
+        .spyOn(cache, 'get')
+        .mockImplementation((cacheKey: string): Promise<unknown> => {
+          if (cacheKey === 'API-TOKEN-2020-01-01')
+            return Promise.resolve(undefined);
+          else return Promise.resolve(100000);
+        });
 
       // When
-      const output = justifyService.justify(input);
+      const output = await justifyService.canJustifyXMoreWordsToday(
+        'API-TOKEN',
+        100,
+      );
 
       // Then
-      expect(output).toBe('');
+      expect(output).toBe(true);
     });
 
-    it('feeding a single word > should return said word', () => {
+    it('key does not exist but words number is too great > should return false', async () => {
       // Given
-      const input = 'test';
+      jest
+        .spyOn(cache, 'get')
+        .mockImplementation((cacheKey: string): Promise<unknown> => {
+          if (cacheKey === 'API-TOKEN-2020-01-01')
+            return Promise.resolve(undefined);
+          else return Promise.resolve(100000);
+        });
 
       // When
-      const output = justifyService.justify(input);
+      const output = await justifyService.canJustifyXMoreWordsToday(
+        'API-TOKEN',
+        100000,
+      );
 
       // Then
-      expect(output).toBe(input);
+      expect(output).toBe(false);
     });
 
-    it('feeding a sentence with less than 80 characters > should return sentence', () => {
+    it('key has value 0 and words nbr is low > should return true', async () => {
       // Given
-      const input = TEXT_WITH_LESS_THAN_80_CHARACTERS;
+      jest
+        .spyOn(cache, 'get')
+        .mockImplementation((cacheKey: string): Promise<unknown> => {
+          if (cacheKey === 'API-TOKEN-2020-01-01') return Promise.resolve(0);
+          else return Promise.resolve(100000);
+        });
 
       // When
-      const output = justifyService.justify(input);
+      const output = await justifyService.canJustifyXMoreWordsToday(
+        'API-TOKEN',
+        80000,
+      );
 
       // Then
-      expect(output).toBe(input);
+      expect(output).toBe(true);
     });
 
-    it('feeding a sentence with exactly 80 characters > should return sentence', () => {
+    it('key has value 0 and words nbr is greater than limit > should return false', async () => {
       // Given
-      const input = TEXT_WITH_80_CHARACTERS;
+      jest
+        .spyOn(cache, 'get')
+        .mockImplementation((cacheKey: string): Promise<unknown> => {
+          if (cacheKey === 'API-TOKEN-2020-01-01') return Promise.resolve(0);
+          else return Promise.resolve(100000);
+        });
 
       // When
-      const output = justifyService.justify(input);
+      const output = await justifyService.canJustifyXMoreWordsToday(
+        'API-TOKEN',
+        80001,
+      );
 
       // Then
-      expect(output).toBe(input);
+      expect(output).toBe(false);
     });
 
-    it('feeding a sentence with 81 characters > should split sentence (and not split any word)', () => {
+    it('key has value >0 and words nbr is low > should return true', async () => {
       // Given
-      const input = TEXT_WITH_81_CHARACTERS;
+      jest
+        .spyOn(cache, 'get')
+        .mockImplementation((cacheKey: string): Promise<unknown> => {
+          if (cacheKey === 'API-TOKEN-2020-01-01')
+            return Promise.resolve(40000);
+          else return Promise.resolve(100000);
+        });
 
       // When
-      const output = justifyService.justify(input);
+      const output = await justifyService.canJustifyXMoreWordsToday(
+        'API-TOKEN',
+        40000,
+      );
 
       // Then
-      expect(output).toBe(TEXT_WITH_81_CHARACTERS_JUSTIFIED);
+      expect(output).toBe(true);
     });
 
-    it('feeding paragraph > should split into sentences', () => {
+    it('key has value >0 and words nbr is great > should return false', async () => {
       // Given
-      const input = TEXT_WITH_ONE_PARAGRAPH;
+      jest
+        .spyOn(cache, 'get')
+        .mockImplementation((cacheKey: string): Promise<unknown> => {
+          if (cacheKey === 'API-TOKEN-2020-01-01')
+            return Promise.resolve(40000);
+          else return Promise.resolve(0);
+        });
 
       // When
-      const output = justifyService.justify(input);
+      const output = await justifyService.canJustifyXMoreWordsToday(
+        'API-TOKEN',
+        40001,
+      );
 
       // Then
-      expect(output).toBe(TEXT_WITH_ONE_PARAGRAPH_JUSTIFIED);
+      expect(output).toBe(false);
     });
 
-    it('feeding paragraphs > should split into sentences and put a line break inbetween the paragraphs', () => {
+    it('key has value >limit and words nbr is 1 > should return false', async () => {
       // Given
-      const input = TEXT_WITH_TWO_PARAGRAPHS;
+      jest
+        .spyOn(cache, 'get')
+        .mockImplementation((cacheKey: string): Promise<unknown> => {
+          if (cacheKey === 'API-TOKEN-2020-01-01')
+            return Promise.resolve(80000);
+          else return Promise.resolve(0);
+        });
 
       // When
-      const output = justifyService.justify(input);
+      const output = await justifyService.canJustifyXMoreWordsToday(
+        'API-TOKEN',
+        1,
+      );
 
       // Then
-      expect(output).toBe(TEXT_WITH_TWO_PARAGRAPHS_JUSTIFIED);
+      expect(output).toBe(false);
     });
 
-    it('feeding lines smaller than 80 characters with line breaks in between > should return them', () => {
+    it('key exists but for another day, words nbr is low > should return true', async () => {
       // Given
-      const input = TEXT_MULTIPLE_LINES_UNDER_80_CHARACTERS;
+      jest
+        .spyOn(cache, 'get')
+        .mockImplementation((cacheKey: string): Promise<unknown> => {
+          if (cacheKey === 'API-TOKEN-2019-12-30')
+            return Promise.resolve(80000);
+          else return Promise.resolve(undefined);
+        });
 
       // When
-      const output = justifyService.justify(input);
+      const output = await justifyService.canJustifyXMoreWordsToday(
+        'API-TOKEN',
+        1,
+      );
 
       // Then
-      expect(output).toBe(TEXT_MULTIPLE_LINES_UNDER_80_CHARACTERS);
-    });
-
-    it('feeding text with empty first line, then text > should return the first empty line, then justified text', () => {
-      // Given
-      const input = TEXT_WITH_EMPTY_FIRST_LINE;
-
-      // When
-      const output = justifyService.justify(input);
-
-      // Then
-      expect(output).toBe(TEXT_WITH_EMPTY_FIRST_LINE_JUSTIFIED);
-    });
-
-    it('feeding a long word over 3 lines > should return the splitted word', () => {
-      // Given
-      const input = WORD_WITH_161_CHARACTERS;
-
-      // When
-      const output = justifyService.justify(input);
-
-      // Then
-      expect(output).toBe(WORD_WITH_161_CHARACTERS_SPLITTED.join('\n'));
-    });
-
-    it('feeding a long text with a long word > should return the justified text, splitting the word', () => {
-      // Given
-      const input = LONG_TEXT_WITH_LONG_WORD;
-
-      // When
-      const output = justifyService.justify(input);
-
-      // Then
-      expect(output).toBe(LONG_TEXT_WITH_LONG_WORD_JUSTIFIED);
-    });
-
-    it('feeding a long text with a long word and then more text > should return the justified text, splitting the word, and justified text after', () => {
-      // Given
-      const input = LONG_TEXT_WITH_LONG_WORD_AND_MORE_TEXT;
-
-      // When
-      const output = justifyService.justify(input);
-
-      // Then
-      expect(output).toBe(LONG_TEXT_WITH_LONG_WORD_AND_MORE_TEXT_JUSTIFIED);
+      expect(output).toBe(true);
     });
   });
 
-  describe('splitWord()', () => {
-    it('feeding long word with 81 characters and no firstIterationEnd > should return the splitted word', () => {
+  describe('addXJustifiedWordsToday', () => {
+    it('keys does not exist > should create a new one with word nbr', async () => {
       // Given
-      const input = WORD_WITH_81_CHARACTERS;
+      jest
+        .spyOn(cache, 'get')
+        .mockImplementation((cacheKey: string): Promise<unknown> => {
+          if (cacheKey === 'API-TOKEN-2020-01-01')
+            return Promise.resolve(undefined);
+          else return Promise.resolve(40000);
+        });
+      const cacheSetMock = jest.fn();
+      jest.spyOn(cache, 'set').mockImplementation(cacheSetMock);
 
       // When
-      const output = justifyService.splitWord(input);
+      await justifyService.addXJustifiedWordsToday('API-TOKEN', 10);
 
       // Then
-      expect(output).toStrictEqual(WORD_WITH_81_CHARACTERS_SPLITTED);
+      expect(cacheSetMock).toBeCalledWith('API-TOKEN-2020-01-01', 10, KEYS_TTL);
     });
 
-    it('feeding long word over 3 lines and no firstIterationEnd > should return the splitted word', () => {
+    it('keys exists > should increment it with word nbr', async () => {
       // Given
-      const input = WORD_WITH_161_CHARACTERS;
+      jest
+        .spyOn(cache, 'get')
+        .mockImplementation((cacheKey: string): Promise<unknown> => {
+          if (cacheKey === 'API-TOKEN-2020-01-01') return Promise.resolve(500);
+          else return Promise.resolve(40000);
+        });
+      const cacheSetMock = jest.fn();
+      jest.spyOn(cache, 'set').mockImplementation(cacheSetMock);
 
       // When
-      const output = justifyService.splitWord(input);
+      await justifyService.addXJustifiedWordsToday('API-TOKEN', 10);
 
       // Then
-      expect(output).toStrictEqual(WORD_WITH_161_CHARACTERS_SPLITTED);
-    });
-
-    it('feeding long word over 3 lines and firstIterationEnd > should return the splitted word and respect first offset', () => {
-      // Given
-      const input = WORD_WITH_161_CHARACTERS;
-      const firstIterationEnd = 47;
-
-      // When
-      const output = justifyService.splitWord(input, firstIterationEnd);
-
-      // Then
-      expect(output).toStrictEqual(
-        WORD_WITH_161_CHARACTERS_SPLITTED_FIRST_ITERATION_47,
+      expect(cacheSetMock).toBeCalledWith(
+        'API-TOKEN-2020-01-01',
+        510,
+        KEYS_TTL,
       );
+    });
+  });
+
+  describe('justify', () => {
+    it('token does not allow any more justifying > should throw', async () => {
+      // Given
+      jest
+        .spyOn(justifyService, 'canJustifyXMoreWordsToday')
+        .mockResolvedValueOnce(false);
+
+      // When
+      try {
+        await justifyService.justify('text', 'API-TOKEN');
+
+        fail();
+      } catch (e) {
+        // Then
+        expect(e.status).toBe(402);
+        expect(e.response).toBe(
+          'This request goes over your daily limit of 80000 words. You must switch to a paid subscription to use it any further',
+        );
+      }
+    });
+
+    it('token allows justifying > should returned justified text & increase cached word count', async () => {
+      // Given
+      jest
+        .spyOn(justifyService, 'canJustifyXMoreWordsToday')
+        .mockResolvedValueOnce(true);
+
+      const addXJustifiedWordsTodayMock = jest.fn();
+      jest
+        .spyOn(justifyService, 'addXJustifiedWordsToday')
+        .mockImplementation(addXJustifiedWordsTodayMock);
+
+      // When
+      const output = await justifyService.justify('text', 'API-TOKEN');
+
+      // Then
+      // expect(justifyMock).toBeCalledWith('text', 80);
+      expect(addXJustifiedWordsTodayMock).toBeCalledWith('API-TOKEN', 1);
+      expect(output).toBe('justified text');
     });
   });
 });

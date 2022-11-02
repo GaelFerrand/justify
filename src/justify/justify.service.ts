@@ -1,104 +1,59 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { countWords, justify } from '../utils/string.util';
+import { today } from '../utils/date.util';
+import { Cache } from 'cache-manager';
+import { CACHE_MANAGER, Inject } from '@nestjs/common';
 
-const MAX_LINE_SIZE_CHARACTERS = 80;
+const LINE_MAX_LENGTH = 80;
+const MAX_JUSTIFIED_WORD_PER_DAY = 80000;
+export const KEYS_TTL = 3600 * 24; // 1 day
 
 @Injectable()
 export class JustifyService {
-  justify(text: string): string {
-    const paragraphs = this.splitIntoParagraphs(text);
+  constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
-    let result = '';
-    for (const paragraph of paragraphs) {
-      const words = this.splitIntoWords(paragraph);
+  async justify(text: string, token: string): Promise<string> {
+    const wordsNbr = countWords(text);
 
-      let line = '';
-      wordLoop: for (const word of words) {
-        // This chunk is hard to extract in a separate function. Essentially, it will
-        // split a long word into multiples lines so that it fills started lines and
-        // can be filled after. Like for example:
-        // "some sentence and aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        // "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        // "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa and some other words"
-        if (this.wordIsLongerThanLineMaxLength(word)) {
-          const firstIterationEnd = MAX_LINE_SIZE_CHARACTERS - line.length;
-          const splittedWord = this.splitWord(word, firstIterationEnd);
+    const canJustifyXMoreWordsToday = await this.canJustifyXMoreWordsToday(
+      token,
+      wordsNbr,
+    );
 
-          for (const fragment of splittedWord) {
-            line = this.addWord(line, fragment);
-
-            if (this.lineIsFull(line)) {
-              result = this.addLine(result, line);
-              line = '';
-            } else {
-              continue wordLoop;
-            }
-          }
-        }
-
-        if (!this.lineCanIncludeWord(line, word)) {
-          result = this.addLine(result, line);
-          line = '';
-        }
-
-        line = this.addWord(line, word);
-      }
-
-      result = this.addLine(result, line);
+    if (!canJustifyXMoreWordsToday) {
+      throw new HttpException(
+        `This request goes over your daily limit of ${MAX_JUSTIFIED_WORD_PER_DAY} words. You must switch to a paid subscription to use it any further`,
+        HttpStatus.PAYMENT_REQUIRED,
+      );
     }
 
-    return this.removeLastLineBreak(result);
+    const justifiedText = justify(text, LINE_MAX_LENGTH);
+
+    await this.addXJustifiedWordsToday(token, wordsNbr);
+
+    return justifiedText;
   }
 
-  splitIntoParagraphs(text: string): string[] {
-    return text.split('\n');
+  async canJustifyXMoreWordsToday(
+    apiToken: string,
+    wordsNbr: number,
+  ): Promise<boolean> {
+    const cacheKey = `${apiToken}-${today()}`;
+    const justifiedWordsToday = await this.cacheManager.get<number>(cacheKey);
+
+    if (!justifiedWordsToday) return wordsNbr <= MAX_JUSTIFIED_WORD_PER_DAY;
+
+    return justifiedWordsToday + wordsNbr <= MAX_JUSTIFIED_WORD_PER_DAY;
   }
 
-  splitIntoWords(text: string): string[] {
-    return text.split(' ');
-  }
+  async addXJustifiedWordsToday(
+    apiToken: string,
+    wordsNbr: number,
+  ): Promise<void> {
+    const cacheKey = `${apiToken}-${today()}`;
+    const justifiedWordsToday = await this.cacheManager.get<number>(cacheKey);
 
-  removeLastLineBreak(text: string): string {
-    const lastIndexOfLineBreak = text.lastIndexOf('\n');
-    if (lastIndexOfLineBreak !== -1) return text.slice(0, lastIndexOfLineBreak);
-    return text;
-  }
-
-  lineCanIncludeWord(line: string, word: string) {
-    return line.length + word.length <= MAX_LINE_SIZE_CHARACTERS;
-  }
-
-  addWord(line: string, word: string): string {
-    if (line.length + word.length === MAX_LINE_SIZE_CHARACTERS)
-      return `${line}${word}`;
-    return `${line}${word} `;
-  }
-
-  addLine(text: string, line: string): string {
-    return `${text}${line.trim()}\n`;
-  }
-
-  wordIsLongerThanLineMaxLength(word: string): boolean {
-    return word.length > MAX_LINE_SIZE_CHARACTERS;
-  }
-
-  splitWord(
-    word: string,
-    firstIterationEnd = MAX_LINE_SIZE_CHARACTERS,
-  ): string[] {
-    const result = [];
-
-    while (word.length > 0) {
-      const end =
-        result.length === 0 ? firstIterationEnd : MAX_LINE_SIZE_CHARACTERS;
-      const substr = word.slice(0, end);
-      result.push(substr);
-      word = word.substring(end);
-    }
-
-    return result;
-  }
-
-  lineIsFull(line: string): boolean {
-    return line.length === MAX_LINE_SIZE_CHARACTERS;
+    const newJustifiedWordsNbr = (justifiedWordsToday || 0) + wordsNbr;
+    return this.cacheManager.set(cacheKey, newJustifiedWordsNbr, KEYS_TTL);
   }
 }

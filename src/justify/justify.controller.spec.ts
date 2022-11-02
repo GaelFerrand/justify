@@ -4,22 +4,23 @@ import { JoiPipeModule } from 'nestjs-joi';
 import { JustifyController } from './justify.controller';
 import { JustifyService } from './justify.service';
 import * as request from 'supertest';
-import {
-  TEXT_WITH_81_CHARACTERS,
-  TEXT_WITH_81_CHARACTERS_JUSTIFIED,
-} from './justify.mocks';
+import { CacheModule } from '@nestjs/common';
 import { APITokenService } from '../apitoken/apitoken.service';
+import {
+  LONG_TEXT_WITH_LONG_WORD,
+  LONG_TEXT_WITH_LONG_WORD_JUSTIFIED,
+} from '../utils/string.util.mocks';
 
 describe('JustifyController', () => {
   describe('POST api/justify', () => {
-    describe('token validation', () => {
+    describe("param 'token' validation", () => {
       let app: INestApplication;
       let moduleRef: TestingModule;
       const apiTokenServiceMock = { getAPITokenByToken: () => undefined };
 
       beforeEach(async () => {
         moduleRef = await Test.createTestingModule({
-          imports: [JoiPipeModule],
+          imports: [JoiPipeModule, CacheModule.register()],
           controllers: [JustifyController],
           providers: [JustifyService, APITokenService],
         })
@@ -70,7 +71,7 @@ describe('JustifyController', () => {
           });
       });
 
-      it('sending a request with a non-existing token > should return a 401 error expliciting that param "token" is invalid', () => {
+      it('sending a request with a well-formed but non-existing token > should return a 401 error expliciting that param "token" is invalid', () => {
         return request(app.getHttpServer())
           .post('/api/justify')
           .expect(401)
@@ -82,7 +83,7 @@ describe('JustifyController', () => {
       });
     });
 
-    describe('text validation & justify', () => {
+    describe("param 'text' validation", () => {
       let app: INestApplication;
       let moduleRef: TestingModule;
       const API_TOKEN = {
@@ -94,7 +95,7 @@ describe('JustifyController', () => {
 
       beforeEach(async () => {
         moduleRef = await Test.createTestingModule({
-          imports: [JoiPipeModule],
+          imports: [JoiPipeModule, CacheModule.register()],
           controllers: [JustifyController],
           providers: [JustifyService, APITokenService],
         })
@@ -119,34 +120,6 @@ describe('JustifyController', () => {
           });
       });
 
-      it('sending an empty string > should return empty string', () => {
-        return request(app.getHttpServer())
-          .post('/api/justify')
-          .send({ token: API_TOKEN.token, text: '' })
-          .expect(201);
-      });
-
-      it('sending a sentence longer than 80 characters > should return the justified sentence', () => {
-        return request(app.getHttpServer())
-          .post('/api/justify')
-          .send({ token: API_TOKEN.token, text: TEXT_WITH_81_CHARACTERS })
-          .expect(201)
-          .expect(TEXT_WITH_81_CHARACTERS_JUSTIFIED);
-      });
-
-      it('sending a text with more than 50000 characters > should return an error expliciting the size issue', () => {
-        return request(app.getHttpServer())
-          .post('/api/justify')
-          .send({ token: API_TOKEN.token, text: 'a'.repeat(50001) })
-          .expect(400)
-          .expect({
-            statusCode: 400,
-            message:
-              'Request validation of body failed, because: "text" length must be less than or equal to 50000 characters long',
-            error: 'Bad Request',
-          });
-      });
-
       it('sending unexpected type > should return an error expliciting that text must be a string', () => {
         return request(app.getHttpServer())
           .post('/api/justify')
@@ -158,6 +131,44 @@ describe('JustifyController', () => {
               'Request validation of body failed, because: "text" must be a string',
             error: 'Bad Request',
           });
+      });
+    });
+
+    describe('valid parameters', () => {
+      let app: INestApplication;
+      let moduleRef: TestingModule;
+      const API_TOKEN = {
+        id: 1,
+        email: 'user1@mail.com',
+        token: '0bc65b7d-23f1-4c44-bbc6-7a54f9114862',
+      };
+      const apiTokenServiceMock = { getAPITokenByToken: () => API_TOKEN };
+      const justifyServiceMock = {
+        justify: () => Promise.resolve(LONG_TEXT_WITH_LONG_WORD_JUSTIFIED),
+      };
+
+      beforeEach(async () => {
+        moduleRef = await Test.createTestingModule({
+          imports: [JoiPipeModule, CacheModule.register()],
+          controllers: [JustifyController],
+          providers: [JustifyService, APITokenService],
+        })
+          .overrideProvider(APITokenService)
+          .useValue(apiTokenServiceMock)
+          .overrideProvider(JustifyService)
+          .useValue(justifyServiceMock)
+          .compile();
+
+        app = moduleRef.createNestApplication();
+        await app.init();
+      });
+
+      it('sending text > should call justifyService & return justified text', () => {
+        return request(app.getHttpServer())
+          .post('/api/justify')
+          .send({ token: API_TOKEN.token, text: LONG_TEXT_WITH_LONG_WORD })
+          .expect(201)
+          .expect(LONG_TEXT_WITH_LONG_WORD_JUSTIFIED);
       });
     });
   });
