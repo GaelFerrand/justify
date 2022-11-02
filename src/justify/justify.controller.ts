@@ -6,7 +6,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { JustifyService } from './justify.service';
-import { ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { APITokenService } from '../apitoken/apitoken.service';
 import { JustifyTextDto } from './justify.dtos';
 
@@ -17,6 +17,11 @@ export class JustifyController {
     private readonly apiTokenService: APITokenService,
   ) {}
 
+  @ApiOperation({
+    summary: `Enables to justify a text. The justified text will have 80-characters lines max. 
+      An API token must be provided, and each token can justify up to 80000 words per day. 
+      Beyond that rate a paying subscription is required.`,
+  })
   @ApiResponse({
     description: 'The justified text.',
   })
