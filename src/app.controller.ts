@@ -7,7 +7,7 @@ export class AppController {
     summary: `Healthcheck route. Browse /doc for the documentation`,
   })
   @Get()
-  get(): string {
+  get(): number {
     return 'Justify API. See /doc for the documentation';
   }
 }
