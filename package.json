@@ -80,10 +80,8 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   },
-  {
-    "lint-staged": {
-        "src/**/*.{js,ts}": "eslint --cache --fix",
-        "src/**/*.{js,ts,md}": "prettier --write --ignore-unknown"
-    }
-}
+  "lint-staged": {
+      "src/**/*.{js,ts}": "eslint --cache --fix",
+      "src/**/*.{js,ts,md}": "prettier --write --ignore-unknown"
+  }
 }
