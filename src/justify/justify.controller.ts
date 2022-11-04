@@ -54,8 +54,10 @@ export class JustifyController {
     schema: {
       minLength: 36,
       maxLength: 36,
+      // Swagger does not support case-insensitive Regex, so a tweak is needed here
+      // https://stackoverflow.com/questions/60772786/case-insensitive-string-parameter-in-schema-of-openapi
       pattern:
-        '[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$',
+        '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
     },
     description:
       'The API token (uuidv4). See route /api/token to generate one.',
