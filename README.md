@@ -2,7 +2,8 @@
 
 ### Tech choices
 
-I've used the opportunity of this test to try a few technos I had never used before, and had quite some fun. This includes:
+I've used the opportunity of this test to try a few technos **I had never used before**, and had quite some fun. This includes:
+
 - NestJS: never tried it before, but looks very cool for building REST APIs
 - NestJS cache manager: same remark as above
 - SQLite: came across it a few times in CTFs, but never used it as a dev. Pretty neat as well, gets one started quickly
@@ -24,6 +25,7 @@ Also, it's an in-memory database, so of course after each deploy all data is los
 The specs demand to keep count of the words justified by API token so that a rate limit can be imposed. For that purpose I used NestJS's cache manager.
 
 This should be an important tech decision and I used this cache just to demonstrate using a cache alongside a database, but of course it has its cons:
+
 - there's no persistence of who requested what
 - it introduces a new tool in the architecture
 
@@ -61,8 +63,3 @@ $ npm run test:cov
 ## Documentation
 
 Documentation can be accessed at path `/doc`. Documentation comes with examples that can be executed (for testing purposes).
-
-## TODO
-
-- Requests in text/plain
-- Check test coverage

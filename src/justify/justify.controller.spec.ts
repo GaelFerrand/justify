@@ -28,7 +28,7 @@ describe('JustifyController', () => {
           .useValue(apiTokenServiceMock)
           .compile();
 
-        app = moduleRef.createNestApplication();
+        app = moduleRef.createNestApplication({ rawBody: true });
         await app.init();
       });
 
@@ -36,38 +36,35 @@ describe('JustifyController', () => {
         return request(app.getHttpServer())
           .post('/api/justify')
           .expect(400)
-          .send({ text: '' })
+          .send('')
           .expect({
             statusCode: 400,
-            message:
-              'Request validation of body failed, because: "token" is required',
-            error: 'Bad Request',
+            message: '"token" is required',
           });
       });
 
-      it('sending a request with an invalid type for token > should return an error expliciting that param "token" should be a string', () => {
+      it('sending a request with a token too short > should return an error expliciting that param "token" is too short', () => {
         return request(app.getHttpServer())
           .post('/api/justify')
           .expect(400)
-          .send({ token: 1, text: '' })
+          .set({ token: 1 })
+          .send('')
           .expect({
             statusCode: 400,
-            message:
-              'Request validation of body failed, because: "token" must be a string',
-            error: 'Bad Request',
+            message: '"token" length must be 36 characters long',
           });
       });
 
-      it('sending a request with an invalid-string token > should return an error expliciting that param "token" does not match regex', () => {
+      it('sending a request with a non-uuidv4 token > should return an error expliciting that param "token" does not match regex', () => {
         return request(app.getHttpServer())
           .post('/api/justify')
           .expect(400)
-          .send({ token: 'not a valid token', text: '' })
+          .set({ token: 'xxxxxxxx not a valid token xxxxxxxxx' })
+          .send('')
           .expect({
             statusCode: 400,
             message:
-              'Request validation of body failed, because: "token" length must be 36 characters long, "token" with value "not a valid token" fails to match the required pattern: /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i',
-            error: 'Bad Request',
+              '"token" with value "xxxxxxxx not a valid token xxxxxxxxx" fails to match the required pattern: /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i',
           });
       });
 
@@ -75,7 +72,8 @@ describe('JustifyController', () => {
         return request(app.getHttpServer())
           .post('/api/justify')
           .expect(401)
-          .send({ token: '0bc65b7d-23f1-4c44-bbc6-7a54f9114862', text: '' })
+          .set({ token: '0bc65b7d-23f1-4c44-bbc6-7a54f9114862' })
+          .send('')
           .expect({
             statusCode: 401,
             message: `Invalid token '0bc65b7d-23f1-4c44-bbc6-7a54f9114862'`,
@@ -103,33 +101,20 @@ describe('JustifyController', () => {
           .useValue(apiTokenServiceMock)
           .compile();
 
-        app = moduleRef.createNestApplication();
+        app = moduleRef.createNestApplication({ rawBody: true });
         await app.init();
       });
 
-      it('sending a request with no text > should return an error expliciting that param "text" is expected', () => {
+      it('sending too long a text > should return an error expliciting that param "text" is too long', () => {
         return request(app.getHttpServer())
           .post('/api/justify')
           .expect(400)
-          .send({ token: API_TOKEN.token })
+          .set({ token: API_TOKEN.token })
+          .send('a'.repeat(50001))
           .expect({
             statusCode: 400,
             message:
-              'Request validation of body failed, because: "text" is required',
-            error: 'Bad Request',
-          });
-      });
-
-      it('sending unexpected type > should return an error expliciting that text must be a string', () => {
-        return request(app.getHttpServer())
-          .post('/api/justify')
-          .send({ token: API_TOKEN.token, text: 1 })
-          .expect(400)
-          .expect({
-            statusCode: 400,
-            message:
-              'Request validation of body failed, because: "text" must be a string',
-            error: 'Bad Request',
+              '"text" length must be less than or equal to 50000 characters long',
           });
       });
     });
@@ -159,14 +144,15 @@ describe('JustifyController', () => {
           .useValue(justifyServiceMock)
           .compile();
 
-        app = moduleRef.createNestApplication();
+        app = moduleRef.createNestApplication({ rawBody: true });
         await app.init();
       });
 
-      it('sending text > should call justifyService & return justified text', () => {
+      it('sending valid text & token > should call justifyService & return justified text', () => {
         return request(app.getHttpServer())
           .post('/api/justify')
-          .send({ token: API_TOKEN.token, text: LONG_TEXT_WITH_LONG_WORD })
+          .set({ token: API_TOKEN.token })
+          .send(LONG_TEXT_WITH_LONG_WORD)
           .expect(201)
           .expect(LONG_TEXT_WITH_LONG_WORD_JUSTIFIED);
       });
